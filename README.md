@@ -55,6 +55,14 @@ Most token and NFT launches fail the same handful of ways. OriginPad closes each
 - **Verified identity.** Creators and holders connect with X to verify their real handle, so no one can impersonate a known account.
 - **Live mint feed and leaderboards.** Real-time activity and rankings by verified username.
 
+## Screenshots
+
+| Explore collections | Mint a collection |
+|---|---|
+| ![Explore](docs/screenshots/explore.jpg) | ![Collection](docs/screenshots/collection.jpg) |
+
+![Leaderboard](docs/screenshots/leaderboard.jpg)
+
 ## Fee model
 
 | Event | Fee | Goes to |
@@ -105,6 +113,20 @@ cd ../backend && npm install
 cp .env.example .env
 npm start
 ```
+
+## Deployed contracts
+
+Live and verified on **Base Sepolia** (chain id 84532). Anyone can inspect them on-chain:
+
+| Contract | Address |
+|---|---|
+| Launchpad | [`0x808090Ed676D43d8267e784A3Aa3Ac1C3072F51C`](https://sepolia.basescan.org/address/0x808090Ed676D43d8267e784A3Aa3Ac1C3072F51C) |
+| Vault | [`0x856B283164Bd530Ae8E58DA50501df93E944D667`](https://sepolia.basescan.org/address/0x856B283164Bd530Ae8E58DA50501df93E944D667) |
+| Token Factory | [`0x8293632E607d1142682f7509e6878D8B95cb348e`](https://sepolia.basescan.org/address/0x8293632E607d1142682f7509e6878D8B95cb348e) |
+| Uniswap V4 Fee Hook | [`0x0E127CaFeA5c480dB9018C1606dD5734D544C0Cc`](https://sepolia.basescan.org/address/0x0E127CaFeA5c480dB9018C1606dD5734D544C0Cc) |
+| Swap Router | [`0x148f17BDabf9FCe97C6e4E148A7037De48403de9`](https://sepolia.basescan.org/address/0x148f17BDabf9FCe97C6e4E148A7037De48403de9) |
+
+Mainnet addresses will be published here at launch.
 
 ## Roadmap to mainnet
 
