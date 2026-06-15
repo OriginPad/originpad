@@ -89,8 +89,8 @@ export const DOC_SECTIONS: DocSection[] = [
     id: "getting-started",
     title: "Getting started",
     paragraphs: [
-      "OriginPad is an NFT × Token launchpad on Base. Every collection has exactly 100 NFTs. When the last one mints, an ERC-20 token deploys automatically with locked liquidity. No team allocation, no manual steps.",
-      "You need a wallet with ETH on Base (the current deployment runs on Base Sepolia testnet). Open the app, connect, and you can mint, trade or launch immediately.",
+      "OriginPad is an NFT × Token launchpad on Base. Every collection has exactly 100 NFTs. The creator decides at launch whether a token is attached: with a token enabled, an ERC-20 deploys automatically with locked liquidity when the last NFT mints; with it disabled, the collection stays NFT-only and the pooled mint ETH stays claimable by the creator. No team allocation, no manual steps.",
+      "You need a wallet with ETH on Base (the current deployment runs on Base Sepolia testnet). Open the app, connect, and you can mint, trade or launch immediately. Creators and holders can also connect with X to verify their real handle, so nobody can impersonate a known account.",
     ],
   },
   {
@@ -100,8 +100,11 @@ export const DOC_SECTIONS: DocSection[] = [
       "Launching takes four steps: identity (name, ticker, bio, socials), media (3-6 photos, one per rarity tier, the last photo is the Mythic), economics (your mint price; a flat 0.0003 ETH platform fee per mint is added on top), and schedule.",
     ],
     bullets: [
+      "Optional token: toggle a token on or off for the launch. On means an ERC-20 deploys with a Uniswap V4 pool at sellout; off means an NFT-only collection with no token and no pool.",
+      "Swap fee: when a token is enabled, you pick its swap fee from 1.5% (base) up to 3.5%. It is enforced on-chain by a Uniswap V4 hook.",
       "Reveal timing: instant reveals rarities at sellout; 24h / 7d keeps every NFT hidden behind your own mystery photo until the timer ends (uploading the mystery photo is required).",
       "Phases: optionally enable TEAM, GTD and FCFS allowlists with their own time windows and per-wallet caps before the PUBLIC phase. Address lists are merkle-proofed on-chain.",
+      "Verified identity: connect with X so your collection shows your real, verified handle.",
       "Launching costs only gas. Your collection appears in Explore immediately.",
     ],
   },
@@ -125,8 +128,8 @@ export const DOC_SECTIONS: DocSection[] = [
     id: "bonding",
     title: "Bonding & the token",
     paragraphs: [
-      "The 100th mint triggers bonding: an ERC-20 token (1B supply) deploys, a Uniswap V4 pool is created with 50% of the supply plus 20% of the pooled mint ETH, and the liquidity is locked forever (the owning contract has no removal path).",
-      "Every swap carries a 1.5% fee, charged by the Uniswap V4 hook and paid out in ETH, split 1% to the collection creator, 0.2% to the platform, 0.1% to the airdrop vault and 0.2% to maintenance. The token itself has no transfer tax, so it always sells.",
+      "If the creator enabled a token, the 100th mint triggers bonding: an ERC-20 token (1B supply) deploys, a Uniswap V4 pool is created with 50% of the supply plus 20% of the pooled mint ETH, and the liquidity is locked forever (the owning contract has no removal path). If the creator launched without a token, no pool is created and the pooled mint ETH stays claimable by the creator.",
+      "Every swap carries the creator-set fee of 1.5% to 3.5%, charged by the Uniswap V4 hook and paid out in ETH, then split between the collection creator, the platform, maintenance and the airdrop vault (see Fees for the exact proportions). The token itself has no transfer tax, so it always sells.",
     ],
   },
   {
@@ -163,7 +166,8 @@ export const DOC_SECTIONS: DocSection[] = [
     id: "fees",
     title: "Fees",
     paragraphs: [
-      "Every fee is fixed in the contract and flows back to the people who use OriginPad: the creator, the airdrop vault that rewards trading losers, and platform upkeep. No hidden cuts, no oracle-priced surprises.",
+      "Every fee is fixed in the contract and flows back to the people who use OriginPad. There are four recipients across the whole platform: the creator, the platform, maintenance (running costs), and the airdrop vault that rewards trading losers. No hidden cuts, no oracle-priced surprises.",
+      "Fees are charged in two ways. Mint and marketplace fees are split and paid out instantly in the same transaction, so there is nothing to claim. Token swap fees collect in the token's own on-chain fee splitter and are released by a permissionless distribute() call (the CLAIM button on the token page), so anyone can trigger the payout. Every rate below is enforced on-chain.",
     ],
     bullets: [
       "Mint: a flat 0.0003 ETH per NFT, added on top of the creator's mint price and paid to the platform. Not a percentage.",
