@@ -1,180 +1,128 @@
-# Recomendasi (OriginPad)
+<div align="center">
 
-NFT × Token launchpad on Base chain. Upload photos, mint 100 NFTs on a bonding curve, then an ERC-20 token auto-deploys on Uniswap V4 (optional per launch). Trade fees flow to creators, platform, maintenance, and an airdrop vault.
+<img src="https://originpad.live/og.jpg" alt="OriginPad" width="100%" />
 
-Key product features:
-- Optional token: at launch the creator toggles "deploy token" on or off. Off means an NFT-only collection (no token, no pool); the bonding pool ETH stays claimable by the creator.
-- Variable token fee: when token is on, the creator picks a swap fee from 1.5% (base) up to 3.5%, enforced by a Uniswap V4 hook.
-- Reveal timing: rarities are shuffled at sellout and shown instantly, or hidden behind a mystery photo for 24h or 7d.
-- Live mint feed, leaderboards by username, and X handle linking via the profile API.
+# OriginPad
 
----
+### The launchpad built so you cannot get rugged.
 
-## Project Structure
+NFT x Token launchpad on Base. Upload art, mint out a 100-NFT bonding curve, and an ERC-20 token deploys automatically with its liquidity locked. Every mechanism normally used to rug a launch is removed or hard-coded on-chain.
 
-```
-recomendasi/
-├── contracts/         ← Solidity smart contracts (Hardhat)
-│   ├── RecomNFT.sol
-│   ├── RecomToken.sol
-│   ├── RecomVault.sol
-│   ├── RecomTokenFactory.sol
-│   ├── RecomLaunchpad.sol
-│   └── scripts/deploy.ts
-│
-├── frontend/          ← Next.js 14 + Tailwind + Wagmi v2
-│   └── src/
-│       ├── app/
-│       │   ├── page.tsx              ← Homepage
-│       │   ├── launch/page.tsx       ← 4-step launch form
-│       │   ├── explore/page.tsx      ← All collections
-│       │   ├── marketplace/page.tsx  ← Post-bonding NFT market
-│       │   ├── portfolio/page.tsx    ← User's NFTs/tokens
-│       │   ├── collection/[address]/ ← Collection detail + mint
-│       │   └── token/[address]/      ← Token detail + vault
-│       ├── components/
-│       │   ├── layout/Navbar.tsx
-│       │   ├── collection/
-│       │   │   ├── CollectionCard.tsx
-│       │   │   ├── MintButton.tsx
-│       │   │   ├── RarityBar.tsx
-│       │   │   ├── RarityPreview.tsx
-│       │   │   ├── MysteryArt.tsx       ← mystery photo before reveal
-│       │   │   ├── LiveMintFeed.tsx     ← who just minted
-│       │   │   ├── OwnedPreBondingGrid.tsx
-│       │   │   └── NFTGrid.tsx
-│       │   ├── token/VaultStatus.tsx
-│       │   └── ui/  (LiveTicker, MintCountdown, DateTimePicker)
-│       ├── hooks/
-│       │   ├── useCollections.ts
-│       │   └── useNFTs.ts
-│       └── lib/
-│           ├── contracts.ts  ← ABIs + addresses
-│           ├── wagmi.ts
-│           └── ipfs.ts
-│
-└── backend/           ← Oracle server (Node.js + viem)
-    └── oracle/index.ts  ← Indexes trades, submits airdrop lists
-```
+[![Built on Base](https://img.shields.io/badge/Built%20on-Base-0052FF?style=flat-square)](https://base.org)
+[![Website](https://img.shields.io/badge/Live-originpad.live-6366F1?style=flat-square)](https://originpad.live)
+[![Litepaper](https://img.shields.io/badge/Read-Litepaper-8B5CF6?style=flat-square)](./LITEPAPER.md)
+[![X](https://img.shields.io/badge/Follow-@OriginLaunchpad-000000?style=flat-square)](https://x.com/OriginLaunchpad)
+[![Status](https://img.shields.io/badge/Status-Public%20Testnet-22C55E?style=flat-square)](https://originpad.live)
+
+[Website](https://originpad.live) . [Litepaper](./LITEPAPER.md) . [X / Twitter](https://x.com/OriginLaunchpad)
+
+</div>
 
 ---
 
-## Quick Start
+## What is OriginPad
 
-### 1. Deploy Contracts
+OriginPad turns a photo collection into a complete on-chain economy in one flow: an NFT drop, then a live token with locked liquidity, then a reward cycle that pays holders and burns supply. Creators launch in minutes, holders get protection that is enforced by contracts rather than promised in a Discord.
 
-```bash
-cd contracts
-npm install
-cp .env.example .env          # fill PRIVATE_KEY + BASESCAN_API_KEY
-npm run deploy:testnet         # Base Sepolia
-# copy output addresses
-```
+It is live now on Base Sepolia testnet, with a public launch and the path to mainnet underway.
 
-### 2. Run Frontend
+## The problem we solve
 
-```bash
-cd frontend
-npm install
-cp .env.local.example .env.local    # fill in all values
-npm run dev
-# → http://localhost:3000
-```
+Most token and NFT launches fail the same handful of ways. OriginPad closes each one at the contract level:
 
-### 3. Run Oracle
+| Common rug | How OriginPad prevents it |
+|---|---|
+| Liquidity rug pulls | Token liquidity is seeded from the bonding pool and locked. The team cannot pull it. |
+| Team dumps in week one | Distribution is fixed in code, with half of supply routed to a vault on a hard-coded schedule. |
+| Rarity sniping by bots | Rarity is assigned only at sellout, from a block mined after the final mint. The last minter cannot grind for the Mythic. |
+| Allowlist bypass and bot floods | Up to four allowlist phases with on-chain merkle roots. |
+| Malicious marketplace approvals | A built-in marketplace and in-app swap mean no external approvals to drain wallets. |
+| Mint proceeds vanishing | Proceeds flow on-chain into the bonding pool, not to an EOA. |
 
-```bash
-cd backend
-npm install
-cp .env.example .env          # fill ORACLE_PRIVATE_KEY + contract addresses
-npm start
-```
+## How it works
 
----
+1. **Launch.** A creator uploads 3 to 6 photos (one per rarity tier), sets a mint price, toggles an optional token, and configures up to four allowlist phases.
+2. **Mint.** 100 NFTs mint on a bonding curve. Rarity is assigned at sellout and either revealed instantly or hidden behind a mystery photo for 24h or 7d.
+3. **Bond.** The 100th mint triggers the token factory. An ERC-20 (1B supply) deploys and a Uniswap V4 pool opens with liquidity seeded from the bonding pool and locked.
+4. **Trade.** The built-in NFT marketplace unlocks and the token trades through an in-app swap on the V4 pool. No external approvals.
+5. **Reward.** Half of supply locks into a vault. Across five epochs (day 1, 7, 14, 28, 56) it airdrops to holders and burns 9% each cycle, steadily reducing supply.
 
-## Full Flow
+## Key features
 
-```
-User visits /launch
-  → Connects wallet (injected / WalletConnect / Coinbase)
-  → Fills 4-step form: identity, photos, price, schedule, token toggle
-  → Calls RecomLaunchpad.launchCollection()
-  → RecomNFT deploys with a flat platform fee = 0.0003 ETH per mint (no oracle)
+- **Optional token per launch.** Creators can ship an NFT-only collection or a full NFT plus token launch.
+- **Creator-set swap fee.** When a token is enabled, the creator picks a swap fee from 1.5% (base) up to 3.5%, enforced by a Uniswap V4 hook.
+- **Anti-snipe reveals.** Rarities shuffle at sellout; reveal can be instant or delayed by 24h or 7d.
+- **Verified identity.** Creators and holders connect with X to verify their real handle, so no one can impersonate a known account.
+- **Live mint feed and leaderboards.** Real-time activity and rankings by verified username.
 
-Mint phase (up to 100 NFTs)
-  → Each mint: user pays mintPrice + platformFee
-  → Platform fee → treasury
-  → Mint price → bonding pool
-  → Rarity assigned at sellout (anti-snipe shuffle); shown instantly or after 24h / 7d
-  → Pre-bonding sell available with 50% penalty (penalty → platform treasury)
+## Fee model
 
-100th mint triggers (only if token was enabled at launch):
-  → RecomTokenFactory.deployToken(feeBps)
-  → RecomToken deploys (1B supply) + Uniswap V4 pool seeded
-  → Swap fee = creator-chosen 1.5%-3.5% (V4 OriginFeeHook)
-  → NFT marketplace unlocks (1.5% buy/sell fee)
-
-If token was disabled at launch:
-  → No token, no pool; bonding pool ETH stays claimable by the creator
-
-After 24h:
-  → Anyone calls RecomToken.lockVault(vaultAddress)
-  → 50% supply → RecomVault
-
-Vault epochs (day 1, 7, 14, 28, 56):
-  → Oracle indexes trade PnL per address
-  → Oracle submits top-100 loser list
-  → Anyone calls RecomVault.executeEpoch()
-  → 1% airdropped proportionally to losers
-  → 9% burned to 0xdead
-```
-
----
-
-## Fee Summary
-
-| Event | Fee | Recipient |
+| Event | Fee | Goes to |
 |---|---|---|
-| Mint | 0.0003 ETH flat (per NFT) | Platform treasury |
-| Mint price | Creator-set (≥0) | Bonding pool |
-| Pre-bonding sell | 50% penalty | Platform treasury |
-| NFT buy/sell (post-bonding) | 1.5% | See split below |
-| Token buy/sell | 1.5%-3.5% (creator-set) | See split below |
+| Mint | 0.0003 ETH flat per NFT | Platform treasury |
+| Mint price | Creator-set | Bonding pool |
+| NFT buy / sell (post-bonding) | 1.5% | Split below |
+| Token buy / sell | 1.5% to 3.5% (creator-set) | Split below |
 
-**Fee split (proportional, shown for the 1.5% base):**
-- 1.0% → creator
-- 0.2% → platform treasury
-- 0.2% → maintenance (kas)
-- 0.1% → airdrop vault
+**Fee split** (proportions, shown for the 1.5% base): creator 1.0%, platform 0.2%, maintenance 0.2%, airdrop vault 0.1%. The same proportions hold at any swap fee up to 3.5%.
 
-For token swaps the same proportions hold at any fee from 1.5% to 3.5%:
-creator 66.7% / platform 13.3% / maintenance 13.3% / airdrop 6.7% of the fee.
-
----
-
-## Tech Stack
+## Tech stack
 
 | Layer | Tech |
 |---|---|
 | Chain | Base (OP Stack L2) |
-| Contracts | Solidity 0.8.26, OpenZeppelin v5 (viaIR, cancun) |
-| Platform fee | Flat 0.0003 ETH per mint (no oracle dependency) |
+| Contracts | Solidity 0.8.26, OpenZeppelin v5 |
 | Token DEX | Uniswap V4 (PoolManager + custom fee hook) |
-| Frontend | Next.js 14, TypeScript, Tailwind |
-| Wallet | Wagmi v2 + viem (injected + WalletConnect + Coinbase) |
-| IPFS | Pinata |
-| Profile API | Node.js (usernames, X handles, reveal timing) |
-| Oracle | Node.js + viem (event indexer) |
-| Deployment | Hardhat |
+| Frontend | Next.js 14, TypeScript, Tailwind, Wagmi v2 + viem |
+| Storage | IPFS via Pinata |
+| Indexer | Node.js oracle (viem) for PnL and airdrop lists |
+| Tooling | Hardhat |
+
+## Repository layout
+
+```
+originpad/
+├── contracts/   Solidity smart contracts (Hardhat)
+├── frontend/    Next.js 14 app (Wagmi v2 + viem)
+└── backend/     Node.js oracle (trade indexer + airdrop submitter)
+```
+
+## Run it locally
+
+```bash
+# Contracts
+cd contracts && npm install
+cp .env.example .env        # set PRIVATE_KEY + BASESCAN_API_KEY
+npm run deploy:testnet      # Base Sepolia
+
+# Frontend
+cd ../frontend && npm install
+cp .env.local.example .env.local
+npm run dev                 # http://localhost:3000
+
+# Oracle
+cd ../backend && npm install
+cp .env.example .env
+npm start
+```
+
+## Roadmap to mainnet
+
+- Formal third-party security audit
+- Expanded automated test coverage
+- Subgraph indexing for scale
+- Multisig-controlled platform treasury
+- Oracle redundancy across multiple nodes
+- Mainnet launch on Base
+
+## Links
+
+- Website: https://originpad.live
+- Litepaper: [LITEPAPER.md](./LITEPAPER.md)
+- X / Twitter: https://x.com/OriginLaunchpad
 
 ---
 
-## TODO Before Mainnet
-
-- [ ] Full test suite (`contracts/test/`)
-- [ ] Subgraph (The Graph) for efficient event indexing (current getLogs is capped to ~45k blocks)
-- [ ] Rate limiting on /launch (prevent spam collections)
-- [ ] Multisig for platform treasury
-- [ ] Rotate all keys before mainnet (oracle PK, deployer PK, Pinata JWT, GitHub PAT)
-- [ ] Security audit
-- [ ] Oracle redundancy (multiple nodes)
+<div align="center">
+<sub>OriginPad. All rights reserved.</sub>
+</div>
