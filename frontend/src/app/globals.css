@@ -1,0 +1,211 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Modern base — round every interactive element so no sharp "terminal" boxes remain */
+@layer base {
+  button { border-radius: 0.75rem; }
+  input, select, textarea { border-radius: 0.75rem; }
+  img { border-radius: inherit; }
+}
+
+:root {
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-body: 'Inter', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #ffffff;
+  color: #0f172a;
+  font-family: var(--font-body);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f8fafc; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+
+/* Selection */
+::selection {
+  background: rgba(99, 102, 241, 0.15);
+  color: #4338ca;
+}
+
+/* Grid background */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(99,102,241,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99,102,241,0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Gradient hero text */
+.text-glow {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Rarity borders */
+.rarity-common    { border-color: #6b7280; box-shadow: 0 0 10px rgba(107,114,128,0.2); }
+.rarity-uncommon  { border-color: #22c55e; box-shadow: 0 0 10px rgba(34,197,94,0.2); }
+.rarity-rare      { border-color: #3b82f6; box-shadow: 0 0 10px rgba(59,130,246,0.2); }
+.rarity-epic      { border-color: #a855f7; box-shadow: 0 0 10px rgba(168,85,247,0.2); }
+.rarity-legendary { border-color: #f59e0b; box-shadow: 0 0 15px rgba(245,158,11,0.3); }
+.rarity-mythic    { border-color: #ec4899; box-shadow: 0 0 20px rgba(236,72,153,0.4); animation: mythicPulse 2s ease-in-out infinite; }
+
+@keyframes mythicPulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(236,72,153,0.3); }
+  50%       { box-shadow: 0 0 30px rgba(236,72,153,0.5); }
+}
+
+/* Primary button — indigo gradient, modern rounded */
+.btn-primary {
+  @apply inline-flex items-center justify-center font-semibold px-5 py-2.5 text-sm
+         text-white rounded-xl transition-all duration-200 active:scale-95
+         disabled:opacity-50 disabled:pointer-events-none;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+  font-family: var(--font-body);
+  letter-spacing: 0.01em;
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Outline button — secondary action, same indigo accent */
+.btn-outline {
+  @apply inline-flex items-center justify-center font-semibold px-5 py-2.5 text-sm
+         rounded-xl border border-amber text-amber bg-transparent transition-all duration-200
+         active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  font-family: var(--font-body);
+}
+.btn-outline:hover {
+  @apply bg-amber/10;
+}
+
+/* Danger button — destructive action (cancel, delist, sell back) */
+.btn-danger {
+  @apply inline-flex items-center justify-center font-semibold px-5 py-2.5 text-sm
+         rounded-xl border border-red-300 text-red-500 bg-transparent transition-all duration-200
+         active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  font-family: var(--font-body);
+}
+.btn-danger:hover {
+  @apply bg-red-50 border-red-400;
+}
+
+/* Solid danger — final destructive confirm (e.g. burn / sell back) */
+.btn-danger-solid {
+  @apply inline-flex items-center justify-center font-semibold px-5 py-2.5 text-sm
+         rounded-xl bg-red-500 text-white transition-all duration-200
+         active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  font-family: var(--font-body);
+}
+.btn-danger-solid:hover { @apply bg-red-600; }
+
+/* Size + width modifiers — declared after the variants so they win on padding.
+   Compose like: class="btn-primary btn-sm btn-block" */
+.btn-sm { @apply px-3 py-1.5 text-xs rounded-lg; }
+.btn-lg { @apply px-6 py-3 text-base rounded-xl; }
+.btn-block { @apply w-full; }
+
+/* Ghost button */
+.btn-ghost {
+  @apply inline-flex items-center justify-center font-medium px-6 py-2.5 text-sm
+         border border-border text-text-secondary rounded-xl transition-all duration-200;
+  font-family: var(--font-body);
+}
+.btn-ghost:hover {
+  @apply border-amber text-amber bg-muted;
+}
+
+/* Card — white, rounded, shadow */
+.card {
+  @apply bg-panel border border-border p-6 relative overflow-hidden rounded-2xl;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+}
+.card:hover {
+  box-shadow: 0 8px 24px rgba(15,23,42,0.08), 0 2px 6px rgba(15,23,42,0.04);
+  transform: translateY(-2px);
+}
+
+/* Input */
+.input-base {
+  @apply bg-surface border border-border text-text-primary text-sm px-4 py-2.5 w-full
+         rounded-xl focus:outline-none focus:border-amber focus:ring-2 focus:ring-amber/20
+         transition-all duration-150 placeholder:text-text-dim;
+  font-family: var(--font-body);
+}
+
+/* Badge */
+.badge {
+  @apply inline-flex items-center font-medium text-xs px-2.5 py-1 rounded-full border;
+  font-family: var(--font-body);
+}
+
+/* Gradient text utility */
+.gradient-text {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Gradient bg utility */
+.gradient-bg {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+}
+
+/* Glass card */
+.glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+}
+
+/* Smooth page fade-in — wrap a page root with this for a clean entrance */
+.page-enter {
+  animation: pageEnter 0.4s ease both;
+}
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Gentle float for 3D asset images (empty states, etc.) */
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+
+/* Respect reduced-motion: kill animations/transitions for users who ask */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

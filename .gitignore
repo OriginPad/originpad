@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+.npm
+
+# Next.js
+frontend/.next/
+frontend/out/
+
+# Environment variables - JANGAN PERNAH PUSH
+frontend/.env.local
+frontend/.env
+contracts/.env
+contracts/.env.local
+
+# Hardhat
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+
+# Build
+frontend/build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PM2
+.pm2/
+
+# Backup
+*.tar.gz
+
+# Secrets — never commit
+backend/.env
+**/test-wallets.json
+
+# Accidental nested copy of the repo (63MB of stale duplicates)
+/recomendasi/
+
+# Local tooling
+.claude/
+*.log
+*.tsbuildinfo
+.env
