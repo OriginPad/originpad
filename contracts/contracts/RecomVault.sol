@@ -6,6 +6,10 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+interface IAirdropDistributor {
+    function notifyFunded(address token, uint256 amount) external;
+}
+
 /**
  * @title RecomVault
  * @notice Manages token airdrop and burn schedule after bonding
@@ -53,6 +57,9 @@ contract RecomVault is Ownable, ReentrancyGuard {
     address public platform; // can set airdrop recipients
     address public airdropOracle; // backend submits loser list
 
+    // Airdrop 1% per epoch is sent here (claimable forever via merkle), never burned.
+    address public airdropDistributor;
+
     // ─── Events ──────────────────────────────────────────────────────────────────
     event VaultInitialized(address indexed token, uint256 totalLocked);
     event AirdropExecuted(address indexed token, uint256 epoch, uint256 totalAmount, uint256 recipients);
@@ -63,6 +70,14 @@ contract RecomVault is Ownable, ReentrancyGuard {
     constructor(address _platform, address _airdropOracle) Ownable(_platform) {
         platform = _platform;
         airdropOracle = _airdropOracle;
+    }
+
+    function setAirdropDistributor(address _distributor) external onlyOwner {
+        airdropDistributor = _distributor;
+    }
+
+    function setAirdropOracle(address _oracle) external onlyOwner {
+        airdropOracle = _oracle;
     }
 
     // ─── Called by RecomToken ─────────────────────────────────────────────────────
@@ -134,41 +149,37 @@ contract RecomVault is Ownable, ReentrancyGuard {
         uint256 epochTime = v.deployedAt + (epochDay * 1 days);
         require(block.timestamp >= epochTime, "Epoch not ready yet");
 
+        require(airdropDistributor != address(0), "Distributor not set");
+
         IERC20 tokenContract = IERC20(token);
         uint256 totalSupply = v.totalSupply;
 
-        // ── Airdrop ──
-        uint256 airdropTotal = (totalSupply * AIRDROP_PER_EPOCH_BPS) / 10000;
-        address[] memory recipients = airdropRecipients[token][epochIndex];
-        uint256[] memory amounts = airdropAmounts[token][epochIndex];
+        uint256 airdropTotal = (totalSupply * AIRDROP_PER_EPOCH_BPS) / 10000; // 1%
+        uint256 burnAmount = (totalSupply * BURN_PER_EPOCH_BPS) / 10000;      // 9%
 
-        uint256 distributed;
-        for (uint256 i = 0; i < recipients.length; i++) {
-            if (recipients[i] != address(0) && amounts[i] > 0) {
-                tokenContract.safeTransfer(recipients[i], amounts[i]);
-                distributed += amounts[i];
-            }
+        uint256 vaultBalance = tokenContract.balanceOf(address(this));
+
+        // ── Burn 9% (capped to balance) ──
+        address dead = address(0x000000000000000000000000000000000000dEaD);
+        uint256 toBurn = burnAmount > vaultBalance ? vaultBalance : burnAmount;
+        if (toBurn > 0) {
+            tokenContract.safeTransfer(dead, toBurn);
         }
 
-        // Any undistributed airdrop tokens get burned
-        uint256 leftoverAirdrop = airdropTotal - distributed;
-
-        // ── Burn ──
-        uint256 burnAmount = (totalSupply * BURN_PER_EPOCH_BPS) / 10000;
-        burnAmount += leftoverAirdrop; // burn leftover airdrop too
-
-        // Send to dead address (burn)
-        address dead = address(0x000000000000000000000000000000000000dEaD);
-        uint256 vaultBalance = tokenContract.balanceOf(address(this));
-        uint256 actualBurn = burnAmount > vaultBalance ? vaultBalance : burnAmount;
-        if (actualBurn > 0) {
-            tokenContract.safeTransfer(dead, actualBurn);
+        // ── Airdrop 1%: fund the distributor (claimable forever, NEVER burned). ──
+        // The oracle later publishes a cumulative merkle root so losers (min loss
+        // filtered) can claim anytime; unallocated funds roll over to the next snapshot.
+        uint256 remaining = vaultBalance - toBurn;
+        uint256 toAirdrop = airdropTotal > remaining ? remaining : airdropTotal;
+        if (toAirdrop > 0) {
+            tokenContract.safeTransfer(airdropDistributor, toAirdrop);
+            IAirdropDistributor(airdropDistributor).notifyFunded(token, toAirdrop);
         }
 
         v.epochExecuted[epochIndex] = 1;
 
-        emit AirdropExecuted(token, epochIndex, distributed, recipients.length);
-        emit BurnExecuted(token, epochIndex, actualBurn);
+        emit AirdropExecuted(token, epochIndex, toAirdrop, 0);
+        emit BurnExecuted(token, epochIndex, toBurn);
     }
 
     // ─── Batch Execute ────────────────────────────────────────────────────────────
