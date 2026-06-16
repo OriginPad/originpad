@@ -45,7 +45,7 @@ Most token and NFT launches fail the same handful of ways. OriginPad closes each
 2. **Mint.** 100 NFTs mint on a bonding curve. Rarity is assigned at sellout and either revealed instantly or hidden behind a mystery photo for 24h or 7d.
 3. **Bond.** The 100th mint triggers the token factory. An ERC-20 (1B supply) deploys and a Uniswap V4 pool opens with liquidity seeded from the bonding pool and locked.
 4. **Trade.** The built-in NFT marketplace unlocks and the token trades through an in-app swap on the V4 pool. No external approvals.
-5. **Reward.** Half of supply locks into a vault. Across five epochs (day 1, 7, 14, 28, 56) it airdrops to holders and burns 9% each cycle, steadily reducing supply.
+5. **Reward.** Half of supply locks into a vault. Across five epochs (day 1, 7, 14, 28, 56) each cycle burns 9% of supply and routes 1% into a claim pool that trading losers can claim anytime, never expiring. The first epoch fires about two days after sellout (around 24h to lockVault, then about 24h to the day-1 epoch).
 
 ## Key features
 
