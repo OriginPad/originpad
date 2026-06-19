@@ -68,6 +68,28 @@ export async function checkEligibility(token: string, address: string): Promise<
   }
 }
 
+// ─── Claim-based airdrop (cumulative merkle) ──────────────────────────────────
+export interface MyClaim {
+  token: string;
+  root: string;
+  amount: string;      // cumulative token wei this wallet is entitled to
+  proof: `0x${string}`[];
+  updatedAt: number;
+}
+
+// Every token this wallet has a cumulative allocation on. The on-chain claimed()
+// is read separately to show the still-claimable delta.
+export async function fetchMyClaims(address: string): Promise<MyClaim[]> {
+  try {
+    const r = await fetch(`${API}/api/airdrop/claim/${address}`, { cache: "no-store" });
+    if (!r.ok) return [];
+    const data = await r.json();
+    return (data.claims || []) as MyClaim[];
+  } catch {
+    return [];
+  }
+}
+
 // Epoch schedule labels (days after lockVault)
 export const EPOCH_DAYS = [1, 7, 14, 28, 56];
 
@@ -81,6 +103,7 @@ export function formatEpochDate(epochTimeSec: bigint | number): string {
 
 export function epochCountdown(epochTimeSec: bigint | number): string {
   const target = Number(epochTimeSec) * 1000;
+  if (!target) return "TBD"; // epoch unset until vault lock; don't say "ready"
   const diff = target - Date.now();
   if (diff <= 0) return "ready";
   const d = Math.floor(diff / 86400000);

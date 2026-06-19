@@ -337,23 +337,26 @@ export default function CollectionPage() {
         </div>
       </div>
 
-      {/* Live mint feed — who just minted. Own bordered block so it reads as a
-          distinct section under the mint panel on desktop. */}
-      <div className="mb-8 border-t border-border pt-8">
-        <div className="card max-w-2xl">
-          <div className="flex items-center gap-2 mb-4">
-            <p className="text-xs font-semibold text-amber uppercase tracking-wide">LIVE MINTS</p>
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-          </div>
-          <div className="max-h-80 overflow-y-auto pr-1">
-            <LiveMintFeed collectionAddress={collectionAddr as `0x${string}`} />
+      {/* Live mint feed — who just minted. Only relevant while minting; once the
+          collection bonds it auto-disappears and the NFT marketplace below takes
+          over. */}
+      {!bonded && (
+        <div className="mb-8 border-t border-border pt-8">
+          <div className="card max-w-2xl">
+            <div className="flex items-center gap-2 mb-4">
+              <p className="text-xs font-semibold text-amber uppercase tracking-wide">LIVE MINTS</p>
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            </div>
+            <div className="max-h-80 overflow-y-auto pr-1">
+              <LiveMintFeed collectionAddress={collectionAddr as `0x${string}`} />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Pre-reveal we hide rarities behind the mystery photo (no odds/percent).
           After sellout reveal we show the exact final breakdown. */}
-      {info && (
+      {info && !(Number(startTime) > 0 && Date.now() / 1000 - Number(startTime) > 86400) && (
         <div className="mb-8">
           <p className="text-xs font-semibold text-amber uppercase tracking-wide mb-4">
             {reveal.revealed ? "RARITY BREAKDOWN" : "RARITY"}

@@ -200,6 +200,30 @@ body {
   50%      { transform: translateY(-10px); }
 }
 
+/* IpfsImage loading state: shimmer skeleton while the gateway fetch is in
+   flight, then a quick fade-in so images never pop in as a blank/gray box. */
+@keyframes ipfsShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.ipfs-loading {
+  background-image: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.04) 25%,
+    rgba(0, 0, 0, 0.09) 37%,
+    rgba(0, 0, 0, 0.04) 63%
+  );
+  background-size: 200% 100%;
+  animation: ipfsShimmer 1.4s ease-in-out infinite;
+}
+@keyframes ipfsFade {
+  from { opacity: 0.35; }
+  to   { opacity: 1; }
+}
+.ipfs-loaded {
+  animation: ipfsFade 0.45s ease;
+}
+
 /* Respect reduced-motion: kill animations/transitions for users who ask */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

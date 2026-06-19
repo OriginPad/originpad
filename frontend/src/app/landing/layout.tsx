@@ -12,6 +12,7 @@ const APP_URL = "https://app.originpad.live/explore";
 const SUPPORT_URL = "https://app.originpad.live/support";
 const X_URL = "https://x.com/OriginLaunchpad";
 const GITHUB_URL = "https://github.com/OriginLaunchpad";
+const ZORA_URL = "https://zora.co/@originpad";
 
 export default function LandingLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -50,6 +51,7 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
             <Link href="/landing/news" className="hover:text-gray-700 transition-colors">Security Feed</Link>
             <a href={SUPPORT_URL} className="hover:text-gray-700 transition-colors">Support</a>
             <a href={X_URL} target="_blank" rel="noopener noreferrer" className="hover:text-gray-700 transition-colors">X</a>
+            <a href={ZORA_URL} target="_blank" rel="noopener noreferrer" className="hover:text-gray-700 transition-colors">Zora</a>
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="hover:text-gray-700 transition-colors">GitHub</a>
             <a href={APP_URL} className="hover:text-gray-700 transition-colors">App</a>
           </div>

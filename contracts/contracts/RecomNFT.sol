@@ -250,6 +250,12 @@ contract RecomNFT is ERC1155, Ownable, ReentrancyGuard {
     ) external onlyOwnerOrLaunchpad {
         require(!phasesConfigured, "Phases already set");
         for (uint8 i = 0; i < 4; i++) {
+            // Sanity-check ordering so a fat-fingered config cannot create a
+            // dead phase (start >= end) or an out-of-order / overlapping window.
+            // currentPhaseId() returns the lowest active index, so requiring
+            // start[i] >= end[i-1] keeps phases sequential and non-overlapping.
+            require(_starts[i] < _ends[i], "phase start >= end");
+            if (i > 0) require(_starts[i] >= _ends[i - 1], "phase overlap/disorder");
             phases[i] = Phase({
                 merkleRoot: _roots[i],
                 startTime: _starts[i],

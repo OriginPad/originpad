@@ -76,7 +76,11 @@ export function VaultStatus({ tokenAddress, creator }: Props) {
           {EPOCH_LABELS.map((label, i) => {
             const isDone = executed[i] === BigInt(1);
             const isReady = ready[i] && vaultLocked;
-            const epochTime = new Date(Number(epochTimes[i]) * 1000);
+            // Epoch times are 0 until the vault is locked (24h after bonding),
+            // so guard against rendering the Unix epoch (1970) as a real date.
+            const epochSec = Number(epochTimes[i]);
+            const epochSet = epochSec > 0;
+            const epochTime = new Date(epochSec * 1000);
 
             return (
               <div key={label} className="flex items-center gap-4 pl-10 relative">
@@ -104,7 +108,9 @@ export function VaultStatus({ tokenAddress, creator }: Props) {
                       </span>
                     </div>
                     <p className="font-mono text-[10px] text-text-dim">
-                      {epochTime.toLocaleDateString()} {epochTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} UTC
+                      {epochSet
+                        ? `${epochTime.toLocaleDateString()} ${epochTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} UTC`
+                        : "Scheduled after vault lock"}
                     </p>
                   </div>
 
@@ -125,7 +131,8 @@ export function VaultStatus({ tokenAddress, creator }: Props) {
                       </button>
                       <p className="font-mono text-[9px] text-text-dim mt-0.5">
                         {(() => {
-                          const diff = Number(epochTimes[i]) * 1000 - Date.now();
+                          if (!epochSet) return "after vault lock";
+                          const diff = epochSec * 1000 - Date.now();
                           if (diff <= 0) return "soon";
                           const h = Math.floor(diff / 3600000);
                           const m = Math.floor((diff % 3600000) / 60000);

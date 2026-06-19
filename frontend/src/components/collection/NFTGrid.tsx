@@ -41,6 +41,15 @@ export function NFTGrid({ collectionAddress, bonded = false }: Props) {
     address: collectionAddress, abi: NFT_ABI, functionName: "revealed",
     query: { enabled: bonded, refetchInterval: 8000 },
   });
+  // Collection-wide offer the connected wallet currently has in escrow (one per
+  // address). The contract has no per-token offer, so a single offer applies to
+  // any NFT in this collection.
+  const { data: myOfferRaw, refetch: refetchOffer } = useReadContract({
+    address: collectionAddress, abi: NFT_ABI, functionName: "collectionOffer",
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && bonded },
+  });
+  const myOffer = (myOfferRaw as bigint) ?? BigInt(0);
   const { writeContractAsync } = useWriteContract();
   const config = useConfig();
   const [listingId, setListingId] = useState<number | null>(null);
@@ -50,7 +59,10 @@ export function NFTGrid({ collectionAddress, bonded = false }: Props) {
   const [buyingId, setBuyingId] = useState<number | null>(null);
   const [revealing, setRevealing] = useState(false);
   const [rarityFilter, setRarityFilter] = useState<number | "all">("all");
-  const [sortBy, setSortBy] = useState<"none" | "price-asc" | "price-desc">("none");
+  const [sortBy, setSortBy] = useState<"none" | "price-asc" | "price-desc">("price-asc"); // cheapest (floor) first by default
+  const [offerModalId, setOfferModalId] = useState<number | null>(null);
+  const [offerAmount, setOfferAmount] = useState("");
+  const [offerPending, setOfferPending] = useState(false);
 
   // Recovery path: display timer says revealed but on-chain reveal never ran
   // (the post-bonding auto-trigger can fail and nobody has traded yet).
@@ -108,7 +120,8 @@ export function NFTGrid({ collectionAddress, bonded = false }: Props) {
     setTxPending(true);
     try {
       toast.loading("Listing NFT...", { id: "list" });
-      const hash = await writeContractAsync({ address: collectionAddress, abi: NFT_ABI, functionName: "listNFT", args: [BigInt(tokenId), parseEther(listPrice), BigInt(0)] });
+      const expiryTs = BigInt(Math.floor(Date.now() / 1000) + listExpiry); // absolute unix ts, on-chain enforced
+      const hash = await writeContractAsync({ address: collectionAddress, abi: NFT_ABI, functionName: "listNFT", args: [BigInt(tokenId), parseEther(listPrice), expiryTs] });
       await waitForTransactionReceipt(config, { hash });
       toast.success("NFT listed!", { id: "list" });
       setListingId(null);
@@ -117,6 +130,39 @@ export function NFTGrid({ collectionAddress, bonded = false }: Props) {
       toast.error(e?.shortMessage || "List failed", { id: "list" });
     } finally {
       setTxPending(false);
+    }
+  };
+
+  const handleMakeOffer = async () => {
+    if (!offerAmount || parseFloat(offerAmount) <= 0) { toast.error("Enter a valid offer"); return; }
+    setOfferPending(true);
+    try {
+      toast.loading("Submitting offer...", { id: "offer" });
+      const hash = await writeContractAsync({ address: collectionAddress, abi: NFT_ABI, functionName: "makeCollectionOffer", value: parseEther(offerAmount) });
+      await waitForTransactionReceipt(config, { hash });
+      toast.success("Offer submitted!", { id: "offer" });
+      setOfferModalId(null);
+      setOfferAmount("");
+      refetchOffer();
+    } catch (e: any) {
+      toast.error(e?.shortMessage || "Offer failed", { id: "offer" });
+    } finally {
+      setOfferPending(false);
+    }
+  };
+
+  const handleCancelOffer = async () => {
+    setOfferPending(true);
+    try {
+      toast.loading("Cancelling offer...", { id: "offer" });
+      const hash = await writeContractAsync({ address: collectionAddress, abi: NFT_ABI, functionName: "cancelCollectionOffer" });
+      await waitForTransactionReceipt(config, { hash });
+      toast.success("Offer cancelled, ETH returned", { id: "offer" });
+      refetchOffer();
+    } catch (e: any) {
+      toast.error(e?.shortMessage || "Cancel failed", { id: "offer" });
+    } finally {
+      setOfferPending(false);
     }
   };
 
@@ -194,6 +240,20 @@ export function NFTGrid({ collectionAddress, bonded = false }: Props) {
             ))}
           </div>
         )}
+        {/* Collection-level bulk offer (no need to open a single NFT) */}
+        {bonded && (
+          <div className="ml-auto">
+            {myOffer > BigInt(0) ? (
+              <button onClick={handleCancelOffer} disabled={offerPending} className="btn-danger btn-sm">
+                {offerPending ? "..." : `CANCEL OFFER ${formatEther(myOffer)} ETH`}
+              </button>
+            ) : (
+              <button onClick={() => { setOfferModalId(-1); setOfferAmount(""); }} className="btn-primary btn-sm">
+                + Collection offer
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Grid */}
@@ -247,6 +307,9 @@ export function NFTGrid({ collectionAddress, bonded = false }: Props) {
                   </button>
                 )}
 
+                {/* No per-card offer button: offers are collection-wide, so the
+                    offer control lives once at the top of the marketplace. */}
+
                 {/* Owner actions */}
                 {isOwner && listingId !== nft.tokenId && (
                   <button onClick={() => { setListingId(nft.tokenId); setListPrice(""); }}
@@ -290,7 +353,7 @@ export function NFTGrid({ collectionAddress, bonded = false }: Props) {
                     </button>
                   ))}
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1.5">* Expiry is frontend-only (on-chain listing has no expiry)</p>
+                <p className="text-[10px] text-gray-400 mt-1.5">* Listing auto-expires on-chain after this; relist anytime.</p>
               </div>
             </div>
 
@@ -300,6 +363,38 @@ export function NFTGrid({ collectionAddress, bonded = false }: Props) {
                 {txPending ? "LISTING..." : "CONFIRM"}
               </button>
               <button onClick={() => setListingId(null)} className="btn-ghost">
+                CANCEL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Offer modal */}
+      {offerModalId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setOfferModalId(null)}>
+          <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-sm p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <p className="text-xs font-semibold text-amber uppercase tracking-wide mb-2">MAKE COLLECTION OFFER</p>
+            <p className="text-[11px] text-gray-500 mb-5">
+              A collection-wide offer held in escrow. Any holder in this collection can accept it for any of their NFTs. You can cancel anytime to get your ETH back.
+            </p>
+
+            <div>
+              <label className="text-xs font-semibold text-text-dim uppercase tracking-wide block mb-1.5">OFFER (ETH)</label>
+              <input
+                type="number" min="0" step="0.001" placeholder="0.05"
+                value={offerAmount} onChange={e => setOfferAmount(e.target.value)}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl font-mono text-sm text-gray-800 bg-white focus:outline-none focus:border-amber"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-2 mt-5">
+              <button onClick={handleMakeOffer} disabled={offerPending}
+                className="btn-primary flex-1">
+                {offerPending ? "SUBMITTING..." : "SUBMIT OFFER"}
+              </button>
+              <button onClick={() => setOfferModalId(null)} className="btn-ghost">
                 CANCEL
               </button>
             </div>

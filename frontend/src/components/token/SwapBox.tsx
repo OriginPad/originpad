@@ -50,7 +50,6 @@ export function SwapBox({ token, symbol }: { token: `0x${string}`; symbol: strin
 
   // hook fee in bps (default 1.5% until loaded)
   const feeBps = feeBpsRaw && (feeBpsRaw as bigint) > 0n ? Number(feeBpsRaw as bigint) : 150;
-  const feePct = feeBps / 100;
   const keepRatio = 1 - feeBps / 10000;
 
   // Spot estimate (ignores price impact) used as a fallback before/if the live
@@ -225,7 +224,7 @@ export function SwapBox({ token, symbol }: { token: `0x${string}`; symbol: strin
       </button>
 
       <p className="text-[10px] text-text-secondary text-center mt-2">
-        {feePct.toFixed(1)}% fee in ETH per trade. Liquidity locked. Powered by Uniswap V4.
+        Liquidity locked. Powered by Uniswap V4.
       </p>
     </div>
   );

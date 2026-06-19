@@ -31,7 +31,7 @@ export const NEWS_ITEMS: NewsItem[] = [
     caseSummary:
       "Many launches reserve 20-50% of supply for the team with no lockup. Evolved Apes (2021) and similar projects saw insiders dump everything within days, killing the chart and the community.",
     prevention:
-      "OriginPad tokens have a fixed split: 50% goes into the locked liquidity pool, 50% is locked in the airdrop vault on a hard-coded schedule (day 1/7/14/28/56). Each epoch burns 9% of supply and airdrops 1% to the top-100 trading losers. There is no discretionary team bag to dump.",
+      "OriginPad tokens have a fixed split: 50% goes into the locked liquidity pool, 50% is locked in the airdrop vault on a hard-coded schedule (day 1/7/14/28/56). Each epoch burns 9% of supply and routes 1% into a claim pool that trading losers can claim anytime. There is no discretionary team bag to dump.",
   },
   {
     slug: "rarity-sniping",
@@ -136,30 +136,41 @@ export const DOC_SECTIONS: DocSection[] = [
     id: "vault",
     title: "Vault & epochs",
     paragraphs: [
-      "The other 50% of supply locks in the vault on a fixed schedule: on days 1, 7, 14, 28 and 56 after lock, each epoch burns 9% of total supply and airdrops 1% to the top-100 trading losers, measured by an oracle from on-chain trades.",
-      "The schedule is hard-coded. Nobody can skip a burn or redirect an airdrop.",
+      "The other 50% of supply locks in the vault on a fixed schedule: on days 1, 7, 14, 28 and 56 after lock, each epoch burns 9% of total supply and routes 1% into the airdrop claim pool. The 9% burn is permanent. The 1% is never burned.",
+      "The schedule is hard-coded. Nobody can skip a burn or redirect the airdrop pool.",
+      "The first epoch fires roughly two days after sellout: about 24 hours for lockVault to become callable after the token deploys, then the day-1 epoch matures about 24 hours after lock. The remaining epochs follow on days 7, 14, 28 and 56 from lock.",
     ],
   },
   {
     id: "airdrops",
-    title: "Airdrop eligibility",
+    title: "Airdrop and claiming",
     paragraphs: [
-      "Each epoch airdrops 1% of supply to that token's top 100 trading losers. A loser is any wallet whose net ETH loss is positive, measured across both venues combined: the NFT marketplace (ETH spent minus ETH received on flips) and the token pool (ETH paid on buys minus ETH received on sells via the Uniswap V4 pool). The two are summed into one ranking per token.",
-      "The airdrop is paid in the token itself, not ETH. Your share is proportional to how much you lost: the bigger your loss versus the rest of the top 100, the bigger your cut of the 1%.",
-      "The standing updates continuously, then freezes at 23:30 UTC. Distribution runs at 00:00 UTC using that frozen list, so trades in the final 30 minutes do not change who qualifies for that epoch.",
+      "Each epoch adds 1% of supply to that token's claim pool. The pool is shared out to traders who lost money on that token. A loser is any wallet whose net ETH loss is at least 0.001 ETH, measured across both venues combined: the NFT marketplace (ETH spent minus ETH received on flips) and the token pool (ETH paid on buys minus ETH received on sells via the Uniswap V4 pool). The two are summed into one ranking per token.",
+      "The airdrop is paid in the token itself, not ETH. Your share is proportional to how much you lost versus the rest of the losers that day.",
+      "Allocations are cumulative and never expire. Once the pool is shared out to you it stays yours to claim whenever you want. There is no deadline and nothing is clawed back or burned. Anything not yet allocated rolls over to the next day's losers, so the full 1% always reaches traders eventually.",
+      "The oracle snapshots losers daily at 23:30 UTC and publishes a new allocation. Trades in the final 30 minutes before the snapshot count toward the next day instead.",
     ],
     bullets: [
-      "Open the Airdrops page and connect your wallet to see your live rank and estimated amount per token.",
-      "Only wallets with a real net ETH loss qualify. Breaking even or profiting means you are not in the list.",
-      "Ranking is per token. You can be eligible for one token and not another.",
+      "Open the Airdrops page and connect your wallet. Eligible tokens show up under Your claimable airdrops with a Claim button, plus a Claim all button for everything at once.",
+      "Only wallets with a net ETH loss of at least 0.001 ETH qualify. Breaking even or profiting means you are not in the list that day.",
+      "Eligibility is per token. You can be eligible for one token and not another.",
+      "Nothing expires. If you skip a day you can still claim the full amount later.",
     ],
   },
   {
     id: "marketplace",
-    title: "Marketplace",
+    title: "Marketplace & trading",
     paragraphs: [
-      "After bonding, the built-in marketplace unlocks: list at your price (with optional expiry), buy listed NFTs, or make collection-wide offers any owner can accept.",
-      "Sales carry a 1.5% total fee, paid out instantly in the same transaction: 1% to the creator, 0.2% to the platform, 0.2% to maintenance, 0.1% to the airdrop vault. There are no approvals to external contracts. Trading happens inside the collection contract itself.",
+      "Browse every collection from the Explore feed: a swipeable featured row up top, then a searchable list. Switch between the NFTs and Tokens tabs, filter by Live, Bonded or Upcoming, and sort by Newest, Cheapest (floor first), Top or Active. Each collection shows who created it, with their verified handle when they have connected one.",
+      "Open a collection to reach its market. NFTs are shown cheapest-first by default, so the floor is always at the top, and that order holds even when you filter by a specific rarity. Once a collection is more than a day old the rarity breakdown panel tucks away to keep the market view clean.",
+      "After bonding, the built-in marketplace is fully on-chain inside the collection contract itself. There are no approvals to any external marketplace, and buying, listing and offering all settle in a single transaction.",
+    ],
+    bullets: [
+      "Buy: any listed NFT shows its price and a Buy button. Listings are sorted floor-first so the cheapest is easy to find.",
+      "List: owners set a price and an expiry (from 30 minutes up to 6 months). The expiry is enforced on-chain, so once it passes the NFT can no longer be bought at that listing, and you can relist anytime.",
+      "Collection offer: make one collection-wide offer from the market toolbar (it is not a bid on a single NFT). Your ETH is held in escrow and any holder in that collection can accept it for one of their NFTs. You can cancel anytime to get your ETH back. One active offer per wallet per collection.",
+      "Fees: every sale carries a flat 1.5%, paid out instantly in the same transaction (1% creator, 0.2% platform, 0.2% maintenance, 0.1% airdrop vault). The seller receives the price minus 1.5%.",
+      "Coming soon: sweep buying, to select several listed NFTs and buy them all in one transaction.",
     ],
   },
   {

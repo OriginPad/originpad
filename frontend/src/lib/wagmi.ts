@@ -4,8 +4,15 @@ import { injected, walletConnect, coinbaseWallet } from "wagmi/connectors";
 
 const projectId = "b2c4aba99b034aae1fe833eea7b1a9a4";
 
+// Only register the chain the app is actually deployed on. During the testnet
+// phase this is Base Sepolia ONLY, so a wallet on Base mainnet (or anywhere
+// else) can never read/write against contracts that do not exist there. The
+// NetworkGuard prompts users on any other chain to switch.
+const IS_TESTNET = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 84532) === baseSepolia.id;
+const activeChains = IS_TESTNET ? ([baseSepolia] as const) : ([base] as const);
+
 export const wagmiConfig = createConfig({
-  chains: [baseSepolia, base],
+  chains: activeChains,
   connectors: [
     injected(),
     walletConnect({ projectId, showQrModal: true }),

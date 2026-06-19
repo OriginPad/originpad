@@ -6,6 +6,7 @@ import { ErrorCatch } from "./error-catch";
 import { Navbar } from "@/components/layout/Navbar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { TestnetBanner } from "@/components/layout/TestnetBanner";
+import { NetworkGuard } from "@/components/layout/NetworkGuard";
 import { LaunchGate } from "@/components/launch/LaunchGate";
 import { LandingMotion } from "@/components/landing/LandingMotion";
 import { Toaster } from "react-hot-toast";
@@ -66,6 +67,7 @@ export default function RootLayout({
                 </div>
               )}
               {!isLandingDomain && <TestnetBanner />}
+              {!isLandingDomain && <NetworkGuard />}
               {!isLandingDomain && <Navbar />}
               <main className={isLandingDomain ? "" : "pb-14 md:pb-0"}>{children}</main>
               {!isLandingDomain && <BottomNav />}
