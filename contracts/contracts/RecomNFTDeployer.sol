@@ -11,11 +11,19 @@ import "./RecomNFT.sol";
  */
 contract RecomNFTDeployer {
     // The launchpad allowed to deploy NFTs. Set once after the launchpad is
-    // deployed (first-write-wins), so nobody can create orphan collections that
-    // spoof this deployer as their launchpad. (S5)
+    // deployed, so nobody can create orphan collections that spoof this deployer
+    // as their launchpad. (S5)
     address public launchpad;
+    // Only the deployer EOA can wire the launchpad — closes the front-run window
+    // where anyone could set launchpad first and brick/spoof the deployer (F-8).
+    address public immutable owner;
+
+    constructor() {
+        owner = msg.sender;
+    }
 
     function setLaunchpad(address _launchpad) external {
+        require(msg.sender == owner, "not owner");
         require(launchpad == address(0), "launchpad already set");
         require(_launchpad != address(0), "zero launchpad");
         launchpad = _launchpad;
