@@ -24,6 +24,10 @@ contract RecomLaunchpad is Ownable, ReentrancyGuard {
     address[] public allCollections;
     mapping(address => address[]) public creatorCollections;
     mapping(address => bool) public isCollection;
+    // collection => anti-sniper fee decay window in seconds (0 = off)
+    mapping(address => uint256) public collectionDecay;
+    // collection => creator fee delivery type (0=ETH, 1=token, 2=both)
+    mapping(address => uint8) public collectionFeeType;
 
     // ─── Events ──────────────────────────────────────────────────────────────────
     event CollectionLaunched(
@@ -72,6 +76,8 @@ contract RecomLaunchpad is Ownable, ReentrancyGuard {
         uint256 mintPriceWei;   // 0 = free (creator sets their price, can be 0)
         bool tokenEnabled;      // deploy a token at bonding, or NFT-only
         uint256 tokenFeeBps;    // token swap fee: 150 (1.5%) to 350 (3.5%)
+        uint256 decaySeconds;   // anti-sniper fee decay window (0 = off; fee 80%->base over N sec)
+        uint8 feeReceiveType;   // creator fee delivery: 0=ETH, 1=token (buyback), 2=both
         // Phase config (0=Team, 1=GTD, 2=FCFS, 3=Public)
         bytes32[4] phaseRoots;     // 0x0 = open/public (no allowlist)
         uint256[4] phaseStarts;    // UTC unix start per phase
@@ -114,6 +120,11 @@ contract RecomLaunchpad is Ownable, ReentrancyGuard {
         allCollections.push(collection);
         creatorCollections[msg.sender].push(collection);
         isCollection[collection] = true;
+        // Anti-sniper decay window + creator fee delivery type for this collection,
+        // read by the factory at bonding (pool registration / splitter creation).
+        require(p.feeReceiveType <= 2, "bad fee type");
+        collectionDecay[collection] = p.decaySeconds;
+        collectionFeeType[collection] = p.feeReceiveType;
 
         // Configure mint phases (GTD / FCFS / Public)
         RecomNFT(collection).setupPhases(

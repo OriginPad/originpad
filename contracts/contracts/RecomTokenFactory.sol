@@ -13,10 +13,22 @@ import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {ModifyLiquidityParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 import {LiquidityAmounts} from "@uniswap/v4-periphery/src/libraries/LiquidityAmounts.sol";
-import {CurrencySettler} from "@uniswap/v4-core/test/utils/CurrencySettler.sol";
+import {CurrencySettler} from "./lib/CurrencySettler.sol";
 
 interface IOriginFeeHook {
-    function registerPool(PoolKey calldata key, address recipient, uint256 feeBps) external;
+    function registerPool(PoolKey calldata key, address recipient, uint256 feeBps, uint256 decaySeconds) external;
+}
+
+// Used to fetch a collection's anti-sniper decay setting at bonding time. The
+// collection (RecomNFT) exposes its launchpad, and the launchpad stores the
+// per-collection decay window chosen at launch.
+interface IRecomNFTForDecay {
+    function launchpad() external view returns (address);
+}
+
+interface IRecomLaunchpadForDecay {
+    function collectionDecay(address collection) external view returns (uint256);
+    function collectionFeeType(address collection) external view returns (uint8);
 }
 
 /**
@@ -36,6 +48,10 @@ contract RecomTokenFactory is Ownable, IUnlockCallback {
 
     IPoolManager public immutable poolManager;
     address public immutable feeHook;
+    // OriginSwapRouter, used by each token's splitter to buy back the token for
+    // creators who chose TOKEN/BOTH fee delivery. Set once after deploy (the router
+    // is deployed after the factory). 0 = buyback off (splitters fall back to ETH).
+    address public router;
 
     uint24 public constant LP_FEE = 0; // no LP fee; all trade fee via hook
     int24 public constant TICK_SPACING = 60;
@@ -90,7 +106,14 @@ contract RecomTokenFactory is Ownable, IUnlockCallback {
         );
         tokenAddress = address(token);
 
-        OriginFeeSplitter splitter = new OriginFeeSplitter(creator, platformTreasury, kasWallet, airdropVault);
+        // Read this collection's launch config from its launchpad. Defensive: any
+        // failure leaves decay off (0) and fee type ETH (0) so bonding never bricks.
+        (uint256 dec, uint8 feeType) = _collectionConfig(collection);
+
+        OriginFeeSplitter splitter = new OriginFeeSplitter(
+            creator, platformTreasury, kasWallet, airdropVault,
+            tokenAddress, router, feeHook, feeType
+        );
 
         collectionToToken[collection] = tokenAddress;
         tokenToCollection[tokenAddress] = collection;
@@ -100,12 +123,12 @@ contract RecomTokenFactory is Ownable, IUnlockCallback {
         emit TokenDeployed(collection, tokenAddress, creator, name, symbol);
 
         if (msg.value > 0) {
-            _createPool(tokenAddress, address(splitter), msg.value, feeBps);
+            _createPool(tokenAddress, address(splitter), msg.value, feeBps, dec);
         }
         emit PoolCreated(tokenAddress, address(splitter), msg.value, token.TOTAL_SUPPLY() / 2);
     }
 
-    function _createPool(address tokenAddr, address splitter, uint256 ethAmount, uint256 feeBps) internal {
+    function _createPool(address tokenAddr, address splitter, uint256 ethAmount, uint256 feeBps, uint256 decaySeconds) internal {
         uint256 tokenAmount = RecomToken(tokenAddr).TOTAL_SUPPLY() / 2;
 
         // currency0 = native ETH (0x0) is always < currency1 = token
@@ -119,7 +142,7 @@ contract RecomTokenFactory is Ownable, IUnlockCallback {
 
         uint160 sqrtPriceX96 = _calcSqrtPriceX96(ethAmount, tokenAmount); // amount0=eth, amount1=token
         poolManager.initialize(key, sqrtPriceX96);
-        IOriginFeeHook(feeHook).registerPool(key, splitter, feeBps);
+        IOriginFeeHook(feeHook).registerPool(key, splitter, feeBps, decaySeconds);
 
         poolManager.unlock(abi.encode(key, sqrtPriceX96, ethAmount, tokenAmount));
     }
@@ -185,6 +208,23 @@ contract RecomTokenFactory is Ownable, IUnlockCallback {
         platformTreasury = _treasury;
         airdropVault = _vault;
         kasWallet = _kas;
+    }
+
+    /// @notice Set the OriginSwapRouter used for creator fee buybacks (TOKEN/BOTH).
+    function setRouter(address _router) external onlyOwner {
+        router = _router;
+    }
+
+    /// @dev Read a collection's launch config (decay window, fee receive type) from
+    ///      its launchpad. Fully defensive: any failure returns safe defaults
+    ///      (decay 0 = off, feeType 0 = ETH) so bonding can never be bricked.
+    function _collectionConfig(address collection) internal view returns (uint256 dec, uint8 feeType) {
+        try IRecomNFTForDecay(collection).launchpad() returns (address lp) {
+            if (lp != address(0)) {
+                try IRecomLaunchpadForDecay(lp).collectionDecay(collection) returns (uint256 d) { dec = d; } catch {}
+                try IRecomLaunchpadForDecay(lp).collectionFeeType(collection) returns (uint8 f) { feeType = f; } catch {}
+            }
+        } catch {}
     }
 
     function getAllTokens() external view returns (address[] memory) { return allTokens; }

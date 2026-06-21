@@ -28,6 +28,9 @@ interface FormData {
   // Token (optional) — deploy an ERC20 + V4 pool at bonding, with a custom swap fee
   tokenEnabled: boolean;
   tokenFeePct: string; // 1.5 to 3.5
+  antiSniper: boolean;     // F1: anti-sniper fee decay (80% -> base fee over N seconds)
+  decaySeconds: number;    // F1: decay window length (default 10s)
+  feeReceiveType: number;  // F2: creator fee delivery 0=ETH, 1=token, 2=both
   // Phase config (Team, GTD, FCFS, Public)
   teamEnabled: boolean;
   teamStart: string;
@@ -71,6 +74,9 @@ export default function LaunchPage() {
     mintPriceETH: "0",
     tokenEnabled: true,
     tokenFeePct: "1.5",
+    antiSniper: false,
+    decaySeconds: 10,
+    feeReceiveType: 0,
     revealTiming: "instant",
     unrevealPhoto: null,
     teamEnabled: false,
@@ -236,6 +242,8 @@ export default function LaunchPage() {
             mintPriceWei,
             tokenEnabled: form.tokenEnabled,
             tokenFeeBps,
+            decaySeconds: BigInt(form.tokenEnabled && form.antiSniper ? form.decaySeconds || 10 : 0), // F1
+            feeReceiveType: form.tokenEnabled ? form.feeReceiveType : 0, // F2
             phaseRoots: phaseRoots as [`0x${string}`, `0x${string}`, `0x${string}`, `0x${string}`],
             phaseStarts: phaseStarts as [bigint, bigint, bigint, bigint],
             phaseEnds: phaseEnds as [bigint, bigint, bigint, bigint],

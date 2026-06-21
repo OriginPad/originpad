@@ -178,7 +178,7 @@ export default function NFTDetailPage() {
     setTxPending(true);
     try {
       toast.loading("Submitting offer...", { id: "offer" });
-      const hash = await writeContractAsync({ address: collection as `0x${string}`, abi: NFT_ABI, functionName: "makeCollectionOffer", value: parseEther(offerAmount) });
+      const hash = await writeContractAsync({ address: collection as `0x${string}`, abi: NFT_ABI, functionName: "makeCollectionOffer", args: [BigInt(7 * 24 * 3600)], value: parseEther(offerAmount) }); // S7: 7-day offer
       await waitForTransactionReceipt(config, { hash });
       toast.success("Offer submitted!", { id: "offer" });
       setOfferMode(false);

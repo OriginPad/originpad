@@ -20,11 +20,13 @@ export const wagmiConfig = createConfig({
   ],
   transports: {
     [base.id]: http("https://mainnet.base.org"),
-    // publicnode supports getLogs (needed for live mint + leaderboard indexing);
-    // sepolia.base.org rejects getLogs, so it is only a write/read fallback.
+    // drpc supports filtered eth_getLogs up to ~10k blocks (needed for live mint +
+    // leaderboard indexing). publicnode's getLogs is BROKEN ("Invalid parameters"),
+    // and sepolia.base.org caps getLogs low — both kept only as write/read fallback.
     [baseSepolia.id]: fallback([
-      http("https://base-sepolia-rpc.publicnode.com"),
+      http("https://base-sepolia.drpc.org"),
       http("https://sepolia.base.org"),
+      http("https://base-sepolia-rpc.publicnode.com"),
     ]),
   },
 });

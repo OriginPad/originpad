@@ -10,6 +10,17 @@ import "./RecomNFT.sol";
  *         recorded as the NFT's launchpad address.
  */
 contract RecomNFTDeployer {
+    // The launchpad allowed to deploy NFTs. Set once after the launchpad is
+    // deployed (first-write-wins), so nobody can create orphan collections that
+    // spoof this deployer as their launchpad. (S5)
+    address public launchpad;
+
+    function setLaunchpad(address _launchpad) external {
+        require(launchpad == address(0), "launchpad already set");
+        require(_launchpad != address(0), "zero launchpad");
+        launchpad = _launchpad;
+    }
+
     function deployNFT(
         address _creator,
         string calldata _name,
@@ -29,6 +40,7 @@ contract RecomNFTDeployer {
         address _kasWallet,
         address _tokenFactory
     ) external returns (address) {
+        require(msg.sender == launchpad, "only launchpad"); // S5: no orphan collections
         RecomNFT nft = new RecomNFT(
             _creator,
             _name,

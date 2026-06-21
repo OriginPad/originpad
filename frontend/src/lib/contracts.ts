@@ -123,6 +123,8 @@ export const LAUNCHPAD_ABI = [
           { name: "mintPriceWei", type: "uint256" },
           { name: "tokenEnabled", type: "bool" },
           { name: "tokenFeeBps", type: "uint256" },
+          { name: "decaySeconds", type: "uint256" },
+          { name: "feeReceiveType", type: "uint8" },
           { name: "phaseRoots", type: "bytes32[4]" },
           { name: "phaseStarts", type: "uint256[4]" },
           { name: "phaseEnds", type: "uint256[4]" },
@@ -301,10 +303,19 @@ export const NFT_ABI = [
     outputs: [],
   },
   {
+    // F4: buy several listed NFTs in one tx (sweep)
+    name: "buyMany",
+    type: "function",
+    stateMutability: "payable",
+    inputs: [{ name: "_tokenIds", type: "uint256[]" }],
+    outputs: [],
+  },
+  {
+    // S7: makeCollectionOffer now takes a duration (seconds); the offer expires after.
     name: "makeCollectionOffer",
     type: "function",
     stateMutability: "payable",
-    inputs: [],
+    inputs: [{ name: "_duration", type: "uint256" }],
     outputs: [],
   },
   {
@@ -315,17 +326,42 @@ export const NFT_ABI = [
     outputs: [],
   },
   {
+    // S6: acceptCollectionOffer now takes the agreed sale price (<= offerer's budget);
+    // the unused part of the budget is refunded to the offerer.
     name: "acceptCollectionOffer",
     type: "function",
     stateMutability: "nonpayable",
     inputs: [
       { name: "_tokenId", type: "uint256" },
       { name: "_offerer", type: "address" },
+      { name: "_agreedPrice", type: "uint256" },
     ],
     outputs: [],
   },
   {
     name: "collectionOffer",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    name: "offerExpiry",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    // S4: pull a payout that previously failed to send
+    name: "withdrawPending",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: [],
+  },
+  {
+    name: "pendingWithdrawals",
     type: "function",
     stateMutability: "view",
     inputs: [{ name: "", type: "address" }],

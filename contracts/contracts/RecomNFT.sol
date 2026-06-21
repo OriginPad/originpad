@@ -92,6 +92,7 @@ contract RecomNFT is ERC1155, Ownable, ReentrancyGuard {
     bool public revealed;
     uint256 public revealSeed;
     uint256 public bondingBlock; // block at sellout; reveal seed drawn from a later block
+    uint256 public constant REVEAL_DELAY = 5; // S1: blocks after sellout for the seed block
     uint256[2] public packedRarity; // 100 tokens x 3 bits, packed into 2 slots
 
     // Exact rarity distribution (must sum to MAX_SUPPLY=100)
@@ -102,6 +103,10 @@ contract RecomNFT is ERC1155, Ownable, ReentrancyGuard {
     uint256 public totalMinted;
     uint256 public poolBalance; // ETH in bonding pool
     uint256 public totalOffersEscrow; // ETH held for open collection offers
+    // S4: if a fee/sale payout fails (a recipient contract reverts on receive), credit
+    // it here instead of bricking the whole trade. The payee pulls it via withdrawPending.
+    mapping(address => uint256) public pendingWithdrawals;
+    uint256 public totalPending; // sum of pendingWithdrawals (excluded from owner sweep)
 
     // Token ID => owner mapping for marketplace
     mapping(uint256 => address) public tokenOwner;
@@ -111,6 +116,9 @@ contract RecomNFT is ERC1155, Ownable, ReentrancyGuard {
 
     // Collection-level offers: offerer => amountOffered (pending ETH)
     mapping(address => uint256) public collectionOffer;
+    // S7: each offer expires; a stale offer can't be accepted at an old price.
+    mapping(address => uint256) public offerExpiry;
+    uint256 public constant MAX_OFFER_DURATION = 30 days;
 
     // ─── Platform ────────────────────────────────────────────────────────────────
     address public platformTreasury;
@@ -128,6 +136,7 @@ contract RecomNFT is ERC1155, Ownable, ReentrancyGuard {
     event NFTListed(uint256 indexed tokenId, uint256 price, uint256 expiry, address seller);
     event NFTListingCancelled(uint256 indexed tokenId, address seller);
     event NFTSold(uint256 indexed tokenId, uint256 price, address from, address to);
+    event PaymentCredited(address indexed to, uint256 amount); // S4: payout fell back to pull
     event PreBondingSell(uint256 indexed tokenId, address seller, uint256 returned);
     event CollectionOfferMade(address indexed offerer, uint256 amount);
     event CollectionOfferCancelled(address indexed offerer, uint256 amount);
@@ -343,8 +352,7 @@ contract RecomNFT is ERC1155, Ownable, ReentrancyGuard {
         // Platform fee (per unit) to treasury
         uint256 totalPlatformFee = info.platformFeeETH * quantity;
         if (totalPlatformFee > 0) {
-            (bool ok,) = platformTreasury.call{value: totalPlatformFee}("");
-            require(ok, "Platform fee failed");
+            _payOrCredit(platformTreasury, totalPlatformFee); // S4
         }
 
         // Mint price portion to pool
@@ -396,8 +404,7 @@ contract RecomNFT is ERC1155, Ownable, ReentrancyGuard {
         (bool ok,) = msg.sender.call{value: returned}("");
         require(ok, "Transfer failed");
 
-        (bool toPlat,) = platformTreasury.call{value: penalty}("");
-        require(toPlat, "Penalty transfer failed");
+        _payOrCredit(platformTreasury, penalty); // S4
 
         emit PreBondingSell(_tokenId, msg.sender, returned);
     }
@@ -515,15 +522,21 @@ contract RecomNFT is ERC1155, Ownable, ReentrancyGuard {
 
     function _maybeReveal() internal {
         if (revealed || !info.bondingComplete || bondingBlock == 0) return;
-        if (block.number <= bondingBlock) return; // need the sellout block mined
+        uint256 seedBlock = bondingBlock + REVEAL_DELAY;
+        if (block.number <= seedBlock) return; // seed block not mined yet
 
-        bytes32 bh = blockhash(bondingBlock); // 0 if older than 256 blocks
-        revealSeed = uint256(keccak256(abi.encodePacked(
-            bh,
-            block.prevrandao, // unpredictable fallback if bh == 0
-            address(this),
-            totalMinted
-        )));
+        bytes32 bh = blockhash(seedBlock);
+        if (bh == bytes32(0)) {
+            // S1: the seed block aged out of the 256-block window before anyone
+            // revealed. Re-anchor to a fresh future block so the seed can never
+            // collapse to a predictable constant (keccak of 0).
+            bondingBlock = block.number;
+            return;
+        }
+        // S1: the seed is a FUTURE block's hash — unknown at sellout (so the final
+        // minter can't grind) and fixed once mined (so the seed is identical no matter
+        // WHEN reveal is triggered, closing the prevrandao retry-until-rare grind).
+        revealSeed = uint256(keccak256(abi.encodePacked(bh, address(this), totalMinted)));
         _revealShuffle();
         revealed = true;
     }
@@ -578,62 +591,76 @@ contract RecomNFT is ERC1155, Ownable, ReentrancyGuard {
         emit NFTListingCancelled(_tokenId, msg.sender);
     }
 
-    function buyNFT(uint256 _tokenId) external payable nonReentrant {
-        require(info.bondingComplete, "Bonding not complete");
-        _maybeReveal();
-        uint256 listPrice = tokenListPrice[_tokenId];
+    /// @dev Execute one listed purchase (price, fees, transfer, payouts). Returns the
+    ///      price paid. Caller must ensure msg.value covers the sum of all prices.
+    function _buyListed(uint256 _tokenId) private returns (uint256 listPrice) {
+        listPrice = tokenListPrice[_tokenId];
         require(listPrice > 0, "Not listed");
         uint256 expiry = tokenListExpiry[_tokenId];
         require(expiry == 0 || block.timestamp <= expiry, "Listing expired");
-        require(msg.value >= listPrice, "Insufficient ETH");
-
         address seller = tokenOwner[_tokenId];
         require(seller != msg.sender, "Cannot buy own NFT");
 
-        // Calculate fees on buy side
         uint256 creatorFee = (listPrice * CREATOR_FEE_BPS) / 10000;         // 1%
         uint256 platformFee = (listPrice * PLATFORM_TRADE_FEE_BPS) / 10000; // 0.2%
         uint256 kasFee = (listPrice * KAS_FEE_BPS) / 10000;                 // 0.2%
         uint256 airdropFee = (listPrice * AIRDROP_FEE_BPS) / 10000;         // 0.1%
-        uint256 totalFee = creatorFee + platformFee + kasFee + airdropFee;
-        uint256 sellerReceives = listPrice - totalFee;
+        uint256 sellerReceives = listPrice - creatorFee - platformFee - kasFee - airdropFee;
 
-        // Transfer
         tokenOwner[_tokenId] = msg.sender;
         tokenListPrice[_tokenId] = 0;
         tokenListExpiry[_tokenId] = 0;
         tokenLastSalePrice[_tokenId] = listPrice;
         _safeTransferFrom(seller, msg.sender, _tokenId, 1, "");
 
-        // Distribute
-        (bool toSeller,) = seller.call{value: sellerReceives}("");
-        require(toSeller, "Seller payment failed");
-        (bool toCreator,) = info.creator.call{value: creatorFee}("");
-        require(toCreator, "Creator fee failed");
-        (bool toPlatform,) = platformTreasury.call{value: platformFee}("");
-        require(toPlatform, "Platform fee failed");
-        (bool toKas,) = kasWallet.call{value: kasFee}("");
-        require(toKas, "Kas fee failed");
-        (bool toAirdrop,) = airdropVault.call{value: airdropFee}("");
-        require(toAirdrop, "Airdrop fee failed");
-
-        // Refund excess
-        if (msg.value > listPrice) {
-            (bool refund,) = msg.sender.call{value: msg.value - listPrice}("");
-            require(refund, "Refund failed");
-        }
+        // S4: credit-on-fail so a reverting recipient can't brick the sale
+        _payOrCredit(seller, sellerReceives);
+        _payOrCredit(info.creator, creatorFee);
+        _payOrCredit(platformTreasury, platformFee);
+        _payOrCredit(kasWallet, kasFee);
+        _payOrCredit(airdropVault, airdropFee);
 
         emit NFTSold(_tokenId, listPrice, seller, msg.sender);
+    }
+
+    function buyNFT(uint256 _tokenId) external payable nonReentrant {
+        require(info.bondingComplete, "Bonding not complete");
+        _maybeReveal();
+        uint256 spent = _buyListed(_tokenId);
+        require(msg.value >= spent, "Insufficient ETH");
+        if (msg.value > spent) {
+            (bool refund,) = msg.sender.call{value: msg.value - spent}("");
+            require(refund, "Refund failed");
+        }
+    }
+
+    /// @notice F4: buy several listed NFTs in one transaction (sweep). Reverts the whole
+    ///         batch (atomic) if total ETH sent is short of the listed prices.
+    function buyMany(uint256[] calldata _tokenIds) external payable nonReentrant {
+        require(info.bondingComplete, "Bonding not complete");
+        require(_tokenIds.length > 0 && _tokenIds.length <= 50, "Bad count");
+        _maybeReveal();
+        uint256 spent;
+        for (uint256 i = 0; i < _tokenIds.length; i++) {
+            spent += _buyListed(_tokenIds[i]);
+        }
+        require(msg.value >= spent, "Insufficient ETH");
+        if (msg.value > spent) {
+            (bool refund,) = msg.sender.call{value: msg.value - spent}("");
+            require(refund, "Refund failed");
+        }
     }
 
     /**
      * @notice Deposit ETH as a standing offer for any NFT in this collection.
      *         Any owner can call acceptOffer() to sell to the highest offerer.
      */
-    function makeCollectionOffer() external payable nonReentrant {
+    function makeCollectionOffer(uint256 _duration) external payable nonReentrant {
         require(info.bondingComplete, "Bonding not complete");
         require(msg.value > 0, "No ETH sent");
+        require(_duration > 0 && _duration <= MAX_OFFER_DURATION, "Bad duration"); // S7
         collectionOffer[msg.sender] += msg.value;
+        offerExpiry[msg.sender] = block.timestamp + _duration;
         totalOffersEscrow += msg.value;
         emit CollectionOfferMade(msg.sender, collectionOffer[msg.sender]);
     }
@@ -642,45 +669,49 @@ contract RecomNFT is ERC1155, Ownable, ReentrancyGuard {
         uint256 amount = collectionOffer[msg.sender];
         require(amount > 0, "No offer");
         collectionOffer[msg.sender] = 0;
+        offerExpiry[msg.sender] = 0;
         totalOffersEscrow -= amount;
         (bool ok,) = msg.sender.call{value: amount}("");
         require(ok, "Refund failed");
         emit CollectionOfferCancelled(msg.sender, amount);
     }
 
-    function acceptCollectionOffer(uint256 _tokenId, address _offerer) external nonReentrant {
+    /// @param _agreedPrice the sale price (<= the offerer's deposited budget); any
+    ///        excess deposit is refunded to the offerer. (S6) Offer must not be expired (S7).
+    function acceptCollectionOffer(uint256 _tokenId, address _offerer, uint256 _agreedPrice) external nonReentrant {
         require(info.bondingComplete, "Bonding not complete");
         _maybeReveal();
         require(tokenOwner[_tokenId] == msg.sender, "Not owner");
-        uint256 offerAmount = collectionOffer[_offerer];
-        require(offerAmount > 0, "No offer from address");
+        uint256 budget = collectionOffer[_offerer];
+        require(budget > 0, "No offer from address");
+        require(block.timestamp <= offerExpiry[_offerer], "Offer expired"); // S7
+        require(_agreedPrice > 0 && _agreedPrice <= budget, "Bad agreed price"); // S6
+        uint256 refund = budget - _agreedPrice;
 
         collectionOffer[_offerer] = 0;
-        totalOffersEscrow -= offerAmount;
+        offerExpiry[_offerer] = 0;
+        totalOffersEscrow -= budget;
         tokenOwner[_tokenId] = _offerer;
         tokenListPrice[_tokenId] = 0;
         tokenListExpiry[_tokenId] = 0;
-        tokenLastSalePrice[_tokenId] = offerAmount;
+        tokenLastSalePrice[_tokenId] = _agreedPrice;
         _safeTransferFrom(msg.sender, _offerer, _tokenId, 1, "");
 
-        uint256 creatorFee = (offerAmount * CREATOR_FEE_BPS) / 10000;
-        uint256 platformFee = (offerAmount * PLATFORM_TRADE_FEE_BPS) / 10000;
-        uint256 kasFee = (offerAmount * KAS_FEE_BPS) / 10000;
-        uint256 airdropFee = (offerAmount * AIRDROP_FEE_BPS) / 10000;
-        uint256 sellerReceives = offerAmount - creatorFee - platformFee - kasFee - airdropFee;
+        uint256 creatorFee = (_agreedPrice * CREATOR_FEE_BPS) / 10000;
+        uint256 platformFee = (_agreedPrice * PLATFORM_TRADE_FEE_BPS) / 10000;
+        uint256 kasFee = (_agreedPrice * KAS_FEE_BPS) / 10000;
+        uint256 airdropFee = (_agreedPrice * AIRDROP_FEE_BPS) / 10000;
+        uint256 sellerReceives = _agreedPrice - creatorFee - platformFee - kasFee - airdropFee;
+        if (refund > 0) _payOrCredit(_offerer, refund); // S6 refund / S4 credit-on-fail
 
-        (bool toSeller,) = msg.sender.call{value: sellerReceives}("");
-        require(toSeller, "Seller payment failed");
-        (bool toCreator,) = info.creator.call{value: creatorFee}("");
-        require(toCreator, "Creator fee failed");
-        (bool toPlatform,) = platformTreasury.call{value: platformFee}("");
-        require(toPlatform, "Platform fee failed");
-        (bool toKas,) = kasWallet.call{value: kasFee}("");
-        require(toKas, "Kas fee failed");
-        (bool toAirdrop,) = airdropVault.call{value: airdropFee}("");
-        require(toAirdrop, "Airdrop fee failed");
+        // S4: credit-on-fail so a reverting recipient can't brick the accept
+        _payOrCredit(msg.sender, sellerReceives);
+        _payOrCredit(info.creator, creatorFee);
+        _payOrCredit(platformTreasury, platformFee);
+        _payOrCredit(kasWallet, kasFee);
+        _payOrCredit(airdropVault, airdropFee);
 
-        emit NFTSold(_tokenId, offerAmount, msg.sender, _offerer);
+        emit NFTSold(_tokenId, _agreedPrice, msg.sender, _offerer);
     }
 
     // ─── View Functions ───────────────────────────────────────────────────────────
@@ -744,10 +775,33 @@ contract RecomNFT is ERC1155, Ownable, ReentrancyGuard {
 
     function withdrawEmergency() external onlyOwner nonReentrant {
         require(info.bondingComplete, "Pool not released");
-        // Never touch ETH escrowed for open collection offers — that belongs to
-        // the offerers until they cancel or an owner accepts.
-        uint256 claimable = address(this).balance - totalOffersEscrow;
+        // Never touch ETH escrowed for open collection offers or credited to payees
+        // via pendingWithdrawals — that money belongs to others.
+        uint256 claimable = address(this).balance - totalOffersEscrow - totalPending;
         (bool ok,) = owner().call{value: claimable}("");
         require(ok);
+    }
+
+    // ─── S4: non-bricking payouts ────────────────────────────────────────────────
+    /// @dev Pay `to`; if the transfer fails (recipient reverts), credit it so the
+    ///      payee can pull later instead of bricking the whole trade.
+    function _payOrCredit(address to, uint256 amount) private {
+        if (amount == 0) return;
+        (bool ok,) = to.call{value: amount}("");
+        if (!ok) {
+            pendingWithdrawals[to] += amount;
+            totalPending += amount;
+            emit PaymentCredited(to, amount);
+        }
+    }
+
+    /// @notice Pull a payout that previously failed to send.
+    function withdrawPending() external nonReentrant {
+        uint256 amount = pendingWithdrawals[msg.sender];
+        require(amount > 0, "Nothing pending");
+        pendingWithdrawals[msg.sender] = 0;
+        totalPending -= amount;
+        (bool ok,) = msg.sender.call{value: amount}("");
+        require(ok, "Withdraw failed");
     }
 }
