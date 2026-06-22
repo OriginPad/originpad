@@ -1,0 +1,31 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjMzMzgzNjIsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHgwQzBENDFhMUNCN0M3NjAyQjJhODkyYTBFOTcwNTk3MTg4OUU0YTZmIn0",
+    "payload": "eyJkb21haW4iOiJhcHAub3JpZ2lucGFkLmxpdmUifQ",
+    "signature": "Fi7dlOQpz7fkU8MJZiUF88c5FAoQL5y5irf4wFQMGHZWjY3nkRXKx27Ht6q4d5kRTrII24U5o9mpbQ0nJnjM2xw="
+  },
+  "miniapp": {
+    "version": "1",
+    "name": "OriginPad",
+    "iconUrl": "https://app.originpad.live/icon.png",
+    "homeUrl": "https://app.originpad.live",
+    "splashImageUrl": "https://app.originpad.live/splash.png",
+    "splashBackgroundColor": "#000000",
+    "subtitle": "NFT x Token Launchpad",
+    "description": "Launch verified NFT collections with bonding curves. Earn tokens. Trade on Base.",
+    "primaryCategory": "finance",
+    "tags": ["nft", "launchpad", "base", "tokens", "defi"],
+    "heroImageUrl": "https://app.originpad.live/og.png",
+    "ogTitle": "OriginPad",
+    "ogDescription": "NFT x Token Launchpad on Base",
+    "ogImageUrl": "https://app.originpad.live/og.png"
+  },
+  "frame": {
+    "version": "1",
+    "name": "OriginPad",
+    "iconUrl": "https://app.originpad.live/icon.png",
+    "homeUrl": "https://app.originpad.live",
+    "splashImageUrl": "https://app.originpad.live/splash.png",
+    "splashBackgroundColor": "#000000"
+  }
+}

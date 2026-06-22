@@ -14,6 +14,10 @@ export function middleware(req: NextRequest) {
 
   const { pathname } = req.nextUrl;
 
+  // Farcaster Mini App manifest must be served as-is on BOTH domains (no redirect),
+  // so clients can fetch /.well-known/farcaster.json at originpad.live too.
+  if (pathname.startsWith("/.well-known")) return NextResponse.next();
+
   // already a landing asset/route
   if (pathname.startsWith("/landing")) return NextResponse.next();
 

@@ -39,6 +39,38 @@ export const metadata: Metadata = {
     description: "NFT × Token Launchpad on Base",
     images: ["/og.jpg"],
   },
+  // Farcaster Mini App embed: bikin link OriginPad muncul sebagai kartu "Open"
+  // yang nge-launch Mini App-nya pas di-cast di Warpcast. fc:frame = legacy fallback.
+  other: {
+    "fc:miniapp": JSON.stringify({
+      version: "1",
+      imageUrl: "https://app.originpad.live/og.png",
+      button: {
+        title: "Open OriginPad",
+        action: {
+          type: "launch_miniapp",
+          name: "OriginPad",
+          url: "https://app.originpad.live",
+          splashImageUrl: "https://app.originpad.live/splash.png",
+          splashBackgroundColor: "#000000",
+        },
+      },
+    }),
+    "fc:frame": JSON.stringify({
+      version: "1",
+      imageUrl: "https://app.originpad.live/og.png",
+      button: {
+        title: "Open OriginPad",
+        action: {
+          type: "launch_frame",
+          name: "OriginPad",
+          url: "https://app.originpad.live",
+          splashImageUrl: "https://app.originpad.live/splash.png",
+          splashBackgroundColor: "#000000",
+        },
+      },
+    }),
+  },
 };
 
 export default function RootLayout({

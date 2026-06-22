@@ -1,6 +1,7 @@
 import { createConfig, http, fallback } from "wagmi";
 import { base, baseSepolia } from "wagmi/chains";
 import { injected, walletConnect, coinbaseWallet } from "wagmi/connectors";
+import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
 
 const projectId = "b2c4aba99b034aae1fe833eea7b1a9a4";
 
@@ -14,6 +15,10 @@ const activeChains = IS_TESTNET ? ([baseSepolia] as const) : ([base] as const);
 export const wagmiConfig = createConfig({
   chains: activeChains,
   connectors: [
+    // Farcaster Mini App: ketika dibuka di dalam klien Farcaster (Warpcast),
+    // konektor ini pakai wallet host -> auto-connect tanpa prompt. Di luar Mini App
+    // dia tidak aktif, jadi aman ditaruh paling depan.
+    farcasterMiniApp(),
     injected(),
     walletConnect({ projectId, showQrModal: true }),
     coinbaseWallet({ appName: "OriginPad" }),
